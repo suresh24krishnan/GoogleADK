@@ -1,0 +1,11 @@
+# Secrets
+.env
+*/.env
+
+# ADK runtime
+.adk/
+*/.adk/
+
+# Python cache
+__pycache__/
+*/__pycache__/
