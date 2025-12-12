@@ -1,89 +1,86 @@
 
-# GitHub Agent with MCP Integration
+# FileSystem MCP Server Agent
 
-This agent is designed to help users interact with GitHub repositories using natural language. It leverages the [Google ADK](https://github.com/google/adk) framework and MCP toolsets to provide read-only access to GitHub data via the Copilot MCP API.
+This agent enables file system management through the Model Context Protocol (MCP), allowing LLMs to interact with local files using structured tools. It is built using the Google ADK framework and integrates with the `@modelcontextprotocol/server-filesystem` backend via `npx`.
 
 ## 🧠 Purpose
 
-The `github_agent` enables users to:
+The `filesystem_assistant_agent` is designed to help users:
 
-- Explore repository structure and contents
-- Search for files, functions, and code snippets
-- Retrieve metadata like issues, pull requests, commits, and contributors
-- Compare branches, view diffs, and inspect release history
-- Ask natural language questions about GitHub projects
+- List files and directories
+- Read file contents
+- Perform basic file operations
+- Interface with a local MCP server using standard I/O
 
-## ⚙️ Setup
+## 🏗️ Architecture
 
-1. Clone this repository.
-2. Create a `.env` file in the `github_agent` folder with your GitHub token:
+- **Agent Framework**: [`google.adk.agents.llm_agent.Agent`](https://github.com/google/adk)
+- **Model**: `LiteLlm(model="openai/gpt-4o")`
+- **Toolset**: `McpToolset` with `StdioConnectionParams`
+- **Backend**: `@modelcontextprotocol/server-filesystem` via `npx`
 
-   ```env
-   GITHUB_TOKEN=your_github_token_here
-   ```
+## 📁 Target Folder
 
-3. Install dependencies:
+The agent operates on the following folder path:
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```
+C:\Users\sures\OneDrive\Personal Folders\AI Learning\Google ADK\GoogleADK
+```
 
-4. Run the agent using your preferred ADK launcher or integration.
+This path is passed to the MCP server as the root directory for file operations.
 
-## 🧩 Agent Configuration
+## 🚀 How It Works
 
 ```python
-from google.adk.agents.llm_agent import Agent
-from google.adk.tools.mcp_tool import McpToolset
-from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPServerParams
-
 root_agent = Agent(
-  model='gemini-2.5-flash',
-  name="github_agent",
-  instruction="Help users get information from GitHub",
-  tools=[
-      McpToolset(
-          connection_params=StreamableHTTPServerParams(
-              url="https://api.githubcopilot.com/mcp/",
-              headers={
-                  "Authorization": f"Bearer {GITHUB_TOKEN}",
-                  "X-MCP-Toolsets": "all",
-                  "X-MCP-Readonly": "true"
-              },
-          ),
-      )
-  ],
+    model=LiteLlm(model="openai/gpt-4o"),
+    name="filesystem_assistant_agent",
+    instruction="Help the user manage their files. You can list files, read files, etc.",
+    tools=[
+        McpToolset(
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command="npx",
+                    args=[
+                        "-y",
+                        "@modelcontextprotocol/server-filesystem",
+                        os.path.abspath(TARGET_FOLDER_PATH),
+                    ],
+                ),
+                timeout=60,
+            ),
+        )
+    ],
 )
 ```
 
-## 💬 Example Questions You Can Ask This Agent
+## 🛠️ Setup
 
-- “Show me the folder structure of `suresh24krishnan/GoogleADK`.”
-- “List all Python files in `suresh24krishnan/GoogleADK/DifferentModels_Agent`.”
-- “Show me the README for `suresh24krishnan/GoogleADK/FunctionTools`.”
-- “Search for all functions named `run` in `suresh24krishnan/GoogleADK`.”
-- “List all open issues in `suresh24krishnan/GoogleADK`.”
-- “Show me the latest commits in `suresh24krishnan/GoogleADK`.”
-- “Compare branch `main` with `dev` in `suresh24krishnan/GoogleADK`.”
-- “Who are the top contributors to `suresh24krishnan/GoogleADK`?”
+1. Ensure `npx` is installed (via Node.js).
+2. Install the MCP server package:
 
-## 📦 Folder Structure
-
-```
-github_agent/
-├── agent.py
-├── __init__.py
-├── .env              # Local credentials (ignored)
-├── .adk/             # ADK session files (ignored)
-├── __pycache__/      # Runtime cache (ignored)
-.gitignore
-README.md
-requirements.txt
+```bash
+npx -y @modelcontextprotocol/server-filesystem <target-folder>
 ```
 
-## 🚫 Notes
+3. Run the agent script to initialize the assistant.
 
-- This agent is **read-only** and cannot modify GitHub data.
-- Session files and environment variables are excluded via `.gitignore`.
+## 📦 Files
 
----
+- `agent.py` — main agent definition
+- `__init__.py` — module initializer
+- `requirements.txt` — dependencies
+- `.gitignore` — excludes runtime artifacts
+- `README.md` — this file
+
+## 🧪 Notes
+
+- Timeout is increased to 60s to accommodate slower file operations.
+- You can customize the `TARGET_FOLDER_PATH` to point to any directory.
+- The agent is modular and can be extended with additional MCP tools.
+
+## 📄 License
+
+This project is part of the Google ADK ecosystem. Refer to the ADK license for usage terms.
+
+```
