@@ -1,176 +1,184 @@
 
-# Parallel Multi‑Agent Hiring Review Pipeline (Google ADK)
+# **ADK RAG Wiki Assistant (Embedding‑Based RAG with Google ADK + OpenAI)**
 
-This project demonstrates a powerful **ParallelAgent + SequentialAgent** workflow using the Google AI Developer Kit (ADK).  
-It evaluates a candidate’s resume through **three independent reviewers running in parallel**, followed by a final hiring summary agent that merges their outputs.
-
-This architecture mirrors real‑world hiring panels where multiple reviewers independently assess a candidate before a hiring manager makes the final call.
+A lightweight, fast, and fully self‑contained **Retrieval‑Augmented Generation (RAG)** agent built using **Google ADK**, **OpenAI embeddings**, and **in‑memory vector search**.  
+This project demonstrates how to build a clean, production‑ready RAG pipeline without external vector databases like Chroma or FAISS — perfect for learning, prototyping, and extending into more advanced multi‑document systems.
 
 ---
 
-## 🚀 Features
+## ✅ **Features**
 
-### ✅ Parallel Technical, Culture, and Compensation Review  
-Three LlmAgents run **simultaneously** on the same resume:
-
-1. **TechReviewer**  
-   - Evaluates backend skills, APIs, microservices, databases, system design  
-   - Produces a technical rating (1–10)
-
-2. **CultureFitReviewer**  
-   - Assesses communication, stability, ownership, leadership signals  
-   - Produces a culture‑fit rating (1–10)
-
-3. **CompensationBenchmarker**  
-   - Suggests a compensation band (LPA, India)  
-   - Based on experience, seniority, and typical market expectations
-
-### ✅ Final Hiring Summary  
-A fourth agent, **HiringSummaryAgent**, merges all three assessments and produces:
-
-- Technical summary  
-- Culture fit summary  
-- Compensation band  
-- Final decision label:  
-  - `REJECT`  
-  - `KEEP IN PIPELINE`  
-  - `STRONG HIRE`  
-- One‑sentence justification  
+- **Google ADK Agent** with tool‑calling  
+- **Embedding‑based RAG** using OpenAI’s `text-embedding-3-small`  
+- **In‑memory vector store** (no Chroma, no FAISS, no DB required)  
+- **Automatic chunking** of Wikipedia content  
+- **Cosine similarity retrieval**  
+- **Context‑grounded answers** using Gemini (`gemini-2.5-flash`)  
+- **Caching layer** to avoid repeated embedding calls  
+- **Clean, modular architecture** for easy extension  
 
 ---
 
-## 🧠 Architecture Overview
+## ✅ **Project Structure**
 
 ```
-                ┌──────────────────────┐
-                │   Tech Reviewer      │
-                └──────────────────────┘
-                         ▲
-                         │
-                         │
-┌──────────────┐   ┌──────────────────────┐   ┌────────────────────────┐
-│   Resume      │ → │ Culture Fit Reviewer │ → │ Compensation Reviewer  │
-└──────────────┘   └──────────────────────┘   └────────────────────────┘
-                         │
-                         ▼
-                ┌────────────────────────────┐
-                │   Hiring Summary Agent     │
-                └────────────────────────────┘
-```
-
-The three reviewers run **in parallel**, and their outputs are merged by the summary agent.
-
----
-
-## 📁 Project Structure
-
-```
-ParallelAgent_HiringPipeline/
+ADK_RAG_Wiki_Assistant/
 │
-├── app.py            # Main ADK workflow agent
-├── README.md
-├── requirements.txt
-└── .gitignore
+├── adk_rag_wiki_assistant_agent/
+│   ├── agent.py               # Main ADK agent with embeddings + RAG
+│   ├── __init__.py            # Auto-loads root_agent for ADK
+│   └── .env (ignored)         # API keys (not committed)
+│
+├── requirements.txt           # Python dependencies
+├── README.md                  # Project documentation
+└── .gitignore                 # Ensures env + secrets are excluded
 ```
-
-Everything is intentionally kept in a **single file** for simplicity.
 
 ---
 
-## 🔧 Installation
+## ✅ **How It Works**
 
-### 1. Create and activate a virtual environment
+### **1. Fetch Wikipedia Content**
+The agent retrieves the **Artificial Intelligence** Wikipedia page using a browser‑like User‑Agent to avoid 403 blocks.
+
+### **2. Chunking**
+The page is split into ~800‑character chunks, respecting paragraph boundaries.
+
+### **3. Embedding**
+All chunks are embedded using:
+
+```
+text-embedding-3-small
+```
+
+Embeddings are cached in memory for the lifetime of the ADK process.
+
+### **4. Query Embedding + Similarity Search**
+Each user query is embedded and compared to all chunk vectors using cosine similarity.
+
+### **5. Top‑K Retrieval**
+The top 3 most relevant chunks are returned as context.
+
+### **6. Gemini Generates the Final Answer**
+The ADK agent:
+
+- **must call** the `retrieve_ai_context` tool first  
+- receives the retrieved context  
+- produces a grounded, accurate answer  
+
+---
+
+## ✅ **Setup Instructions**
+
+### **1. Clone the repo**
+
+```bash
+git clone https://github.com/suresh24krishnan/GoogleADK.git
+cd GoogleADK/ADK_RAG_Wiki_Assistant
+```
+
+### **2. Create a virtual environment**
 
 ```bash
 python -m venv env
-env\Scripts\activate      # Windows
 source env/bin/activate   # macOS/Linux
+env\Scripts\activate      # Windows
 ```
 
-### 2. Install dependencies
+### **3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Add your Google API key
+### **4. Add your API keys**
 
-Create a `.env` file:
+Create `.env` inside:
 
 ```
-GOOGLE_API_KEY=your_api_key_here
+ADK_RAG_Wiki_Assistant/adk_rag_wiki_assistant_agent/
 ```
 
----
+Add:
 
-## ▶️ Running the Agent
+```
+GOOGLE_API_KEY=your_gemini_key_here
+OPENAI_API_KEY=your_openai_key_here
+```
 
-This is an **ADK workflow agent**, so you run it using the ADK CLI — *not* with `python app.py`.
+### **5. Run the agent**
 
-From the project folder:
+From the project root:
 
 ```bash
 adk run
 ```
 
-You will see:
+You’ll see:
 
 ```
-ParallelHiringReviewPipeline >
-```
-
-Paste your resume text directly into the prompt and press **Enter**.
-
-ADK will automatically:
-
-- Run all three reviewers in parallel  
-- Merge their outputs  
-- Produce a final structured hiring summary  
-
----
-
-## 🧪 Example Input
-
-```
-Jane Doe
-Backend Developer
-
-Experience:
-Software Engineer at Flipkart (3 years)
-- Built microservices in Java and Spring Boot
-- Designed REST APIs
-- Worked with MySQL and Redis
-- Mentored junior developers
-
-Skills:
-Java, Spring Boot, MySQL, Redis, Docker, Kubernetes, Git
+Running agent wiki_rag_embedding_agent...
 ```
 
 ---
 
-## ✅ Example Output (Simplified)
+## ✅ **Example Queries**
 
-```
-## Final Candidate Summary
-Technical: Strong backend experience with Java, Spring Boot, and microservices...
-Culture Fit: Stable career progression, clear responsibilities...
-Compensation: Suggested Band: 18–24 LPA (India, Backend Developer)
-Decision: KEEP IN PIPELINE
-Reason: Strong technical profile with solid culture fit.
-```
+Try these inside the ADK console:
 
----
+- *What is artificial intelligence*  
+- *Explain the history of AI*  
+- *What is the difference between strong AI and weak AI*  
+- *What are the applications of AI in real life*  
+- *What is the Turing test and why is it important*  
 
-## 📌 Notes
+Each query triggers:
 
-- This project demonstrates **ParallelAgent** orchestration in ADK  
-- All sub‑agents are **LlmAgent** instances  
-- The pipeline is fully extensible (add JD parser, recruiter agent, final decision agent, etc.)  
-- Ideal for demonstrating multi‑agent reasoning patterns  
+✅ embedding search  
+✅ context retrieval  
+✅ grounded answer generation  
 
 ---
 
-## 📄 License
+## ✅ **Why No ChromaDB or FAISS?**
 
-This project is for educational and experimental use.
-```
+This project intentionally avoids external vector databases to keep things:
+
+- simple  
+- portable  
+- dependency‑free  
+- Windows‑friendly  
+- easy to extend  
+
+The in‑memory vector store is fast and perfect for single‑document RAG.
+
+If you want to scale to:
+
+- multiple documents  
+- persistent storage  
+- millions of vectors  
+
+you can easily swap in FAISS, LanceDB, or a cloud vector DB.
+
+---
+
+## ✅ **Future Enhancements**
+
+Here are natural next steps:
+
+- Add multiple Wikipedia pages (ML, Deep Learning, Robotics, AGI…)  
+- Add PDF ingestion  
+- Add persistent FAISS index  
+- Add a Streamlit UI  
+- Add section‑aware retrieval  
+- Add source citations in the final answer  
+
+---
+
+## ✅ **Author**
+
+**Suresh Krishnan**  
+Enterprise/Solution/Product Architect  
+AI/ML, multi‑agent systems, reproducible workflows, emotionally attuned UX  
+
+---
