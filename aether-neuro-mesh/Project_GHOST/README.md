@@ -1,14 +1,3 @@
-Great README already — the **content is solid**. What it needs is a **small but important adjustment** so that:
-
-1. the diagram **renders reliably on GitHub**, and
-2. the role of `key_manager.py` is **explicit and intentional**, not surprising.
-
-Below is a **cleaned, GitHub-ready UPDATED README.md**.
-I have **not changed your technical substance**, only clarified and polished.
-
----
-
-# ✅ **UPDATED `README.md` (drop-in replacement)**
 
 ```md
 # Project GHOST — Demo Implementation
@@ -24,7 +13,7 @@ A minimal, runnable demo of **Project GHOST**: a control-plane pattern for **tok
 
 > **Rendered architecture diagram (GitHub-friendly)**
 
-![Figure 1 — Trust-Boundary Architecture](docs_Figure1.png)
+![Figure 1 — Trust-Boundary Architecture](./docs_Figure1.png)
 
 > The diagram shows strict separation between:
 > - **Zone A** — User-facing application
