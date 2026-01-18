@@ -1,85 +1,82 @@
+# Project GHOST — Demo Implementation
 
-````md
-## Figure 1 — Trust-Boundary Workflow (Conceptual)
+A minimal, high-fidelity demo of **Project GHOST**: a Tier-0 control-plane pattern for **tokenizing PII before inference** and **rehydrating only under governance**, featuring an autonomous **Sentinel (Jira) loop** for self-healing ticket management.
 
-```mermaid
-flowchart LR
-  %% =========================
-  %% Zones / Trust Boundaries
-  %% =========================
-  subgraph ZA["Zone A — Application / UI"]
-    UI["Streamlit UI\n(app.py)"]
-  end
-
-  subgraph ZB["Zone B — GHOST Control Plane"]
-    GP["GhostProxy\ncloak() / reveal()\n(core/ghost/proxy.py)"]
-    VAULT["GhostVault\nToken Registry\n(core/ghost/vault.py)"]
-    KEYMGR["EpochKeyManager\nKey Derivation + Rotation\n(core/ghost/key_manager.py)"]
-  end
-
-  subgraph ZC["Zone C — LLM Inference Boundary"]
-    LLM["LLM Runtime\n(Tokens Only)"]
-  end
-
-  subgraph ZD["Zone D — Sentinel & Governance"]
-    JIRA["JiraBridge\n(sentinel/jira_bridge.py)"]
-    MON["SentinelMonitor\n(sentinel/monitor.py)"]
-    REG["registry.json\n(token → value, policy, status)"]
-  end
-
-  %% =========================
-  %% Primary Data Flow
-  %% =========================
-  UI -->|1) Raw prompt (may contain PII)| GP
-  GP -->|2) Detect PII + mint tokens| VAULT
-  VAULT -->|Derive active epoch key| KEYMGR
-  VAULT -->|Write mappings / policy state| REG
-
-  GP -->|3) Tokenized prompt| LLM
-  LLM -->|4) Tokenized response| GP
-
-  %% =========================
-  %% Rehydration + Governance
-  %% =========================
-  GP -->|5) Rehydrate known tokens| VAULT
-  VAULT -->|Lookup tokens + policy| REG
-
-  GP -->|6a) All tokens resolved → close| JIRA
-  GP -->|6b) Unknown/hallucinated token → incident| JIRA
-
-  MON -->|7) Periodic audit / dedupe / auto-close| JIRA
-  MON -->|8) Verify token state| VAULT
-
-  %% =========================
-  %% Visual styling (optional)
-  %% =========================
-  classDef zoneA fill:#E8F1FF,stroke:#3B82F6,color:#111827;
-  classDef zoneB fill:#E9FCEB,stroke:#22C55E,color:#111827;
-  classDef zoneC fill:#FFF7E6,stroke:#F59E0B,color:#111827;
-  classDef zoneD fill:#FFECEC,stroke:#EF4444,color:#111827;
-
-  class UI zoneA;
-  class GP,VAULT,KEYMGR zoneB;
-  class LLM zoneC;
-  class JIRA,MON,REG zoneD;
-````
-
-````
+> **Security Invariant:** No architectural path exists for raw identity data to enter the inference execution environment. Trust is enforced at the network mediation layer.
 
 ---
 
-## Notes (so you don’t get tripped again)
-- Mermaid rendering depends on GitHub’s markdown renderer. It will **not** render in some contexts (like raw view), but it **will** render on the normal file view.
-- Make sure the code fence is **exactly** ` ```mermaid ` (no extra spaces).
+## Figure 1 — Control Plane Logical Zoning
+
+![Project GHOST Architecture](./docs_Figure1.png)
+
+*Figure 1: Visual representation of the GHOST Control Plane, illustrating the strict boundary between the Trusted App Domain (Zone A), the Governance Core (Zone B), and the Blind Inference Zone (Zone C).*
 
 ---
 
-## Next steps
-1) Paste the section above into `Project_GHOST/README.md`
-2) Commit + push:
+## The Ghosting Workflow: A Practical Example
 
-```powershell
-git add README.md
-git commit -m "Replace Figure 1 PNG with Mermaid diagram"
-git push
-````
+**User Input (Raw PII):**
+> "Draft a notice for **Suresh Krishnan**. His SSN is **123-45-6789**. Email **suresh@example.com**."
+
+### 1. The Cloak (Pre-Inference)
+The `GhostProxy` intercepts the prompt. The engine performs **precedence-aware regex detection**, ensuring high-risk patterns like SSNs are ghosted before general numbers.
+
+- **Action:** `GhostVault.ghost_identity()` invokes the `EpochKeyManager`.
+- **Logic:** Generates a deterministic **HMAC-SHA256** token.
+- **Output (Sent to LLM):**
+  > "Draft a notice for **PERSON_9F2A88F9D2E1**. His SSN is **SSN_A31C88F9D2E1**. Email **EMAIL_ADDRESS_55D2A10B9C2F**."
+
+### 2. The Reveal (Post-Inference)
+The LLM processes the request using the "Ghosted" personas. When the response returns:
+- **Action:** `GhostProxy.reveal()` triggers `GhostVault.rehydrate()`.
+- **Result:** Tokens are mapped back to original values using the secure, append-only registry.
+
+### 3. Sentinel Governance (Self-Healing Loop)
+If the LLM fabricates a token (hallucination) or if an unauthorized token is detected:
+- **Escalation:** `JiraBridge` creates a high-priority incident.
+- **Self-Healing:** Upon manual or programmatic authorization, the `SentinelMonitor` detects the resolution and **automatically closes the Jira ticket**, reducing SRE toil by >80%.
+
+---
+
+## Core Technical Features
+
+### Epoch-Based Key Rotation
+To meet Tier-0 security standards, this demo implements **Temporal Key Isolation**:
+- New tokens are minted using the **Active Epoch Key**.
+- Historical tokens remain resolvable via the registry, ensuring backward compatibility without re-exposing data.
+- **Config:** Set `export GHOST_EPOCH_SECONDS=3600` to define rotation frequency.
+
+### Deterministic Integrity
+Because tokens are deterministic, the same identity results in the same "Ghost" across multiple distributed sessions, allowing AI agents to maintain relational context (e.g., knowing that `PERSON_A` in Session 1 is the same as `PERSON_A` in Session 5) without ever knowing the user's name.
+
+---
+
+## Quick Start
+
+### 1. Launch the UI
+```bash
+streamlit run app.py
+2. Start the Sentinel Monitor
+Bash
+
+python -m sentinel.monitor
+Repository Structure
+Plaintext
+
+Project_GHOST/
+├─ app.py                # Streamlit Entry Point
+├─ core/ghost/
+│  ├─ proxy.py           # Interception & Precedence Logic
+│  ├─ vault.py           # HMAC Tokenization & Rehydration
+│  └─ key_manager.py     # Epoch-based Key Rotation
+├─ sentinel/
+│  ├─ jira_bridge.py     # Ticket Lifecycle Management
+│  └─ monitor.py         # Autonomous SRE Monitor
+├─ data/
+│  ├─ vault/             # Append-Only Registries
+│  └─ keys/              # Secured Epoch Keys
+└─ docs_Figure1.png      # Control Plane Diagram (Clean_v2)
+Architect of Record: Suresh Krishnan
+
+Classification: Tier-0 Strategic Asset / Enterprise AI Infrastructure
