@@ -1,6 +1,6 @@
 # Project GHOST — Demo Implementation
 
-A minimal, high-fidelity demo of **Project GHOST**: a Tier-0 control-plane pattern for **tokenizing PII before inference** and **rehydrating only under governance**, featuring an autonomous **Sentinel (Jira) loop** for self-healing ticket management.
+A high-fidelity reference implementation of Project GHOST: an enterprise-grade control-plane for deterministic PII tokenization and autonomous Sentinel governance.
 
 > **Security Invariant:** No architectural path exists for raw identity data to enter the inference execution environment. Trust is enforced at the network mediation layer.
 
@@ -48,7 +48,7 @@ To meet Tier-0 security standards, this demo implements **Temporal Key Isolation
 - **Config:** Set `export GHOST_EPOCH_SECONDS=3600` to define rotation frequency.
 
 ### Deterministic Integrity
-Because tokens are deterministic, the same identity results in the same "Ghost" across multiple distributed sessions, allowing AI agents to maintain relational context (e.g., knowing that `PERSON_A` in Session 1 is the same as `PERSON_A` in Session 5) without ever knowing the user's name.
+Because tokens are deterministic, the same identity results in the same "Ghost" across multiple distributed sessions, allowing AI agents to maintain referential context (e.g., knowing that `PERSON_A` in Session 1 is the same as `PERSON_A` in Session 5) without ever knowing the user's name.
 
 ---
 
@@ -77,6 +77,8 @@ Project_GHOST/
 │  ├─ vault/             # Append-Only Registries
 │  └─ keys/              # Secured Epoch Keys
 └─ docs_Figure1.png      # Control Plane Diagram (Clean_v2)
-Architect of Record: Suresh Krishnan
+---
 
-Classification: Tier-0 Strategic Asset / Enterprise AI Infrastructure
+**Architect of Record:** Suresh Krishnan  
+**Classification:** Tier-0 Strategic Asset / Enterprise AI Infrastructure
+
